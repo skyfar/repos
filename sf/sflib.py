@@ -55,9 +55,17 @@ directions = {
 pst = {
     'P': (0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 198, 198, 198, 198, 198, 198, 198, 198, 0,
-        0, 178, 198, 198, 198, 198, 198, 198, 178, 0,
-        0, 178, 198, 198, 198, 198, 198, 198, 178, 0,
+        #0, 198, 198, 198, 198, 198, 198, 198, 198, 0,
+        #0, 178, 198, 198, 198, 198, 198, 198, 178, 0,
+        #0, 178, 198, 198, 198, 198, 198, 198, 178, 0,
+        #0, 178, 198, 208, 218, 218, 208, 198, 178, 0,
+        #0, 178, 198, 218, 238, 238, 218, 198, 178, 0,
+        #0, 178, 198, 208, 218, 218, 208, 198, 178, 0,
+        #0, 178, 198, 198, 198, 198, 198, 198, 178, 0,
+        #0, 198, 198, 198, 198, 198, 198, 198, 198, 0,
+        0, 2529, 2529, 2529, 2529, 2529, 2529, 2529, 2529, 0,
+        0, 378, 398, 398, 398, 398, 398, 398, 378, 0,
+        0, 198, 208, 218, 218, 218, 218, 208, 198, 0,
         0, 178, 198, 208, 218, 218, 208, 198, 178, 0,
         0, 178, 198, 218, 238, 238, 218, 198, 178, 0,
         0, 178, 198, 208, 218, 218, 208, 198, 178, 0,
@@ -177,7 +185,7 @@ class Position(namedtuple('Position', 'board score wc bc ep kp')):
         for i, p in enumerate(pos.board):
             if not p.isupper(): continue
             for d in directions[p]:
-                if p == 'P' and d not in (N+W, N+E): break
+                if p == 'P' and d not in (N+W, N+E): continue
                 for j in count(i+d, d):
                     q = pos.board[j]
                     if q == 'k': return False
@@ -379,7 +387,9 @@ def print_pos(pos):
 
 def format_move(move, r=False):
     if r:
-        return (render(119-move[0]) + render(119-move[1]))
+        return render(119-move[0]) + render(119-move[1])
     else:
-        return (render(move[0]) + render(move[1]))
+        return render(move[0]) + render(move[1])
 
+def unformat_move(str_mov):
+    return (parse(str_mov[:2]), parse(str_mov[2:]))

@@ -29,14 +29,18 @@ def init_board(board_file):
     )
     return output
 
+def weighted_choice(wlist):
+    rnd = random.random() * sum(wlist)
+    for i, w in enumerate(wlist):
+        rnd -= w
+        if rnd < 0:
+            return i
+
 opening_list = {}
-def openings():
+def init_openings():
     global opening_list
-    moves = []
-    for move in ('e2e4', 'd2d4', 'b1c3', 'g1f3', 'c2c4'):
-        moves.append((sflib.parse(move[:2]), sflib.parse(move[2:])))
     pos = sflib.Position(sflib.initial, 0, (True,True), (True,True), 0, 0)
-    opening_list[pos] = moves
+    opening_list[pos] = ([sflib.unformat_move(m) for m in ('e2e4', 'd2d4', 'b1c3', 'g1f3', 'c2c4')], (10, 10, 6, 6, 4))
 
 in_q = Queue()
 out_q = Queue()
@@ -44,7 +48,7 @@ out_q = Queue()
 def next_move(pos):
     opening_moves = opening_list.get(pos)
     if opening_moves:
-        return random.sample(opening_moves, 1)[0]
+        return opening_moves[0][weighted_choice(opening_moves[1])]
 
     valid_moves = pos.valid_moves()
     for move in valid_moves:
@@ -64,9 +68,40 @@ def next_move(pos):
         return min([m for m in next_moves if m[2] < 0-sflib.MATE_VALUE], key=lambda m: m[3])[0]
 
     candidate_moves = sorted([move for move in next_moves if abs(move[2] - best_move[2]) < 51], key=lambda m: m[2])
+    weight_list = []
     for move in candidate_moves:
-        print('move:', sflib.format_move(move[0]) + ', score:',  str(move[2]) + ', depth:', str(move[3]))
-    return random.sample(candidate_moves, 1)[0][0]
+        # priority: 0-0, P/N/B in initial position
+        s_from = move[0][0]
+        s_to = move[0][1]
+        piece = pos.board[s_from]
+        if move[0] == (95, 97):
+            weight = 100
+        elif move[0] == (95, 93):
+            weight = 80
+        elif s_from in (84, 85) and piece == 'P':
+            if s_to in (64, 65):
+                weight = 40
+            else:
+                weight = 10
+        elif s_from == 97 and piece == 'N':
+            if s_to == 76:
+                weight = 30
+            elif s_to == 85:
+                weight = 10
+        elif s_from == 92 and piece == 'N':
+            if s_to == 73:
+                weight = 25
+            elif s_to == 84:
+                weight = 8
+        elif s_from == 96 and piece == 'B':
+            weight = 28
+        elif s_from == 93 and piece == 'B':
+            weight = 18
+        else:
+            weight = 1
+        weight_list.append(weight)
+        print('move: ' + piece + sflib.format_move(move[0]) + ', score:',  str(move[2]) + ', depth:', str(move[3]), ', weight:', weight)
+    return candidate_moves[weighted_choice(weight_list)][0]
 
 def rotate_move(move):
     return (119-move[0], 119-move[1])
@@ -98,7 +133,7 @@ def main():
         worker_list[i].start()
 
     try:
-        openings()
+        init_openings()
         pos = sflib.Position(board, 0, (True,True), (True,True), 0, 0)
         while True:
             sflib.print_pos(pos)
