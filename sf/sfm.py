@@ -111,6 +111,9 @@ def next_move(pos):
             weight = 28
         elif s_from == 93 and piece == 'B':
             weight = 18
+        elif s_from == 88 and s_to == 78 and piece == 'P' and pos.board[85] == 'P' \
+                and pos.board[95] == 'K' and pos.board[96] == 'B':
+            weight = 8
         else:
             weight = 1
         weight_list.append(weight)
@@ -148,26 +151,34 @@ def main():
 
     try:
         init_openings()
+        rec_f = open(time.strftime('sfrec-%Y%m%d-%H%M%S.rec'), 'w')
+        rec_f.write(pos.board+'\n')
+        step = 0
         while True:
+            step += 1
             sflib.print_pos(pos)
             white_move = next_move(pos)
             if not white_move:
                 break
             print('White move:', sflib.format_move(white_move))
+            rec_f.write(str(step)+'. ' + sflib.format_move(white_move))
             pos = pos.move(white_move)
 
             sflib.print_pos(pos.rotate())
-            if True:
-                black_move = accept_move(pos)
+            if len(sys.argv) > 3:
+                #machine vs. machine
+                time.sleep(1)
+                black_move = next_move(pos)
+                print('Black move:', sflib.format_move(black_move, True))
             else:
-                # machine vs. machine
-                #time.sleep(3)
-                #black_move = next_move(pos)
-                #print('Black move:', sflib.format_move(black_move), True)
+                black_move = accept_move(pos)
+            rec_f.write(', ' + sflib.format_move(black_move, True) + '\n')
+            rec_f.flush()
             pos=pos.move(black_move)
     except BaseException as e:
         print(e)
     finally:
+        rec_f.close()
         for i in range(WORKERS): worker_list[i].terminate()
 
     return
