@@ -361,11 +361,6 @@ def search(pos, maxd=MAX_DEPTH, maxn=NODES_SEARCHED):
 # User interface
 ###############################################################################
 
-# Python 2 compatability
-if sys.version_info[0] == 2:
-    input = raw_input
-
-
 def parse(c):
     fil, rank = ord(c[0]) - ord('a'), int(c[1]) - 1
     return A1 + fil - 10*rank
@@ -381,8 +376,8 @@ def print_pos(pos):
     uni_pieces = {'r':'♜', 'n':'♞', 'b':'♝', 'q':'♛', 'k':'♚', 'p':'♟',
                   'R':'♖', 'N':'♘', 'B':'♗', 'Q':'♕', 'K':'♔', 'P':'♙', '.':'·'}
     for i, row in enumerate(pos.board.strip().split('\n ')):
-        print(' ', 8-i, ' '.join(p for p in row))
-        #print(' ', 8-i, ' '.join(uni_pieces.get(p, p) for p in row))
+        #print(' ', 8-i, ' '.join(p for p in row))
+        print(' ', 8-i, ' '.join(uni_pieces.get(p, p) for p in row))
     print('    a b c d e f g h \n\n')
 
 def format_move(move, r=False):
