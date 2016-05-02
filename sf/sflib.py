@@ -294,7 +294,7 @@ def bound(pos, gamma, depth):
     # This can be shown equal to maximizing the negative score, with a slightly
     # adjusted gamma value.
     best, bmove = -3*MATE_VALUE, None
-    for move in sorted(pos.valid_moves(), key=pos.value, reverse=True):
+    for move in sorted(pos.gen_moves(), key=pos.value, reverse=True):
         # We check captures with the value function, as it also contains ep and kp
         if depth <= 0 and pos.value(move) < 150:
             break

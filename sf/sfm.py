@@ -11,14 +11,25 @@ import sflib
 if sys.version_info[0] == 2:
     input = raw_input
 
-DEPTH = 4
+DEPTH = 7
 WORKERS = 4
+
+in_q = Queue()
+out_q = Queue()
 def work(in_q, out_q):
     while True:
         move, pos = in_q.get()
         out_q.put((move, sflib.search(pos, DEPTH)))
 
-WHITE, BLACK = range(2)
+worker_list = []
+for i in range(WORKERS):
+    worker_list.append(Process(target=work, args=(in_q, out_q,)))
+    worker_list[i].start()
+
+def clean_up():
+    for i in range(WORKERS): worker_list[i].terminate()
+
+#WHITE, BLACK = range(2)
 FEN_INITIAL = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
 def parseFEN(fen):
@@ -50,9 +61,7 @@ def init_openings():
     global opening_list
     pos = parseFEN(FEN_INITIAL)
     opening_list[pos] = ([sflib.unformat_move(m) for m in ('e2e4', 'd2d4', 'b1c3', 'g1f3', 'c2c4')], (10, 10, 6, 6, 4))
-
-in_q = Queue()
-out_q = Queue()
+init_openings()
 
 def next_move(pos):
     opening_moves = opening_list.get(pos)
@@ -117,42 +126,30 @@ def next_move(pos):
         else:
             weight = 1
         weight_list.append(weight)
-        #print('move: ' + piece + sflib.format_move(move[0]) + ', score:',  str(move[2]) + ', depth:', str(move[3]), ', weight:', weight)
+        print('move: ' + piece + sflib.format_move(move[0]) + ', score:',  str(move[2]) + ', depth:', str(move[3]), ', weight:', weight)
     return candidate_moves[weighted_choice(weight_list)][0]
 
 def rotate_move(move):
     return (119-move[0], 119-move[1])
 
-def accept_move(pos):
-    move = None
-    while move not in pos.valid_moves():
-        match = re.match('([a-h][1-8])'*2, input('Your move: '))
-        if match:
-            move = rotate_move((sflib.parse(match.group(1)), sflib.parse(match.group(2))))
-        else:
-            # Inform the user when invalid input (e.g. "help") is entered
-            print("Please enter a move like g8f6")
-    return move
+def accept_move(pos, str_move):
+    match = re.match('([a-h][1-8])'*2, str_move)
+    if match:
+        move = rotate_move((sflib.parse(match.group(1)), sflib.parse(match.group(2))))
+        if move in pos.valid_moves():
+            return move
+    return None
 
 def main():
     global DEPTH
-    if len(sys.argv) > 1 and sys.argv[1] != '0':
-            pos = init_board(sys.argv[1])
-    else:
-        pos = parseFEN(FEN_INITIAL)
-
-    if len(sys.argv) > 2:
-        DEPTH = int(sys.argv[2])
-
-    worker_list = []
-    for i in range(WORKERS):
-        worker_list.append(Process(target=work, args=(in_q, out_q,)))
-        worker_list[i].start()
-
     try:
-        init_openings()
-        rec_f = open(time.strftime('sfrec-%Y%m%d-%H%M%S.rec'), 'w')
-        rec_f.write(pos.board+'\n')
+        rec_f = open(time.strftime('rec-%Y%m%d-%H%M%S.rec'), 'w')
+        if len(sys.argv) > 1 and sys.argv[1] != '0':
+            pos = init_board(sys.argv[1])
+            rec_f.write(pos.board+'\n')
+        else:
+            pos = parseFEN(FEN_INITIAL)
+
         step = 0
         while True:
             step += 1
@@ -165,13 +162,15 @@ def main():
             pos = pos.move(white_move)
 
             sflib.print_pos(pos.rotate())
-            if len(sys.argv) > 3:
+            if len(sys.argv) > 2:
                 #machine vs. machine
                 time.sleep(1)
                 black_move = next_move(pos)
                 print('Black move:', sflib.format_move(black_move, True))
             else:
-                black_move = accept_move(pos)
+                black_move = None
+                while not black_move:
+                    black_move = accept_move(pos, input('Your move:'))
             rec_f.write(', ' + sflib.format_move(black_move, True) + '\n')
             rec_f.flush()
             pos=pos.move(black_move)
@@ -179,7 +178,7 @@ def main():
         print(e)
     finally:
         rec_f.close()
-        for i in range(WORKERS): worker_list[i].terminate()
+        clean_up()
 
     return
 
