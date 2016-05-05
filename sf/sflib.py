@@ -8,9 +8,18 @@ from itertools import count
 from collections import OrderedDict, namedtuple
 from multiprocessing import Process, Queue
 
+def mycount(start=0, step=1):
+    n = start
+    while True:
+        yield n
+        n += step
+
+if sys.version_info[0] == 2 and sys.version_info[1] < 7:
+    count = mycount
+
 MAX_DEPTH = 8
 # The table size is the maximum number of elements in the transposition table.
-TABLE_SIZE = 1e6
+TABLE_SIZE = 1e7
 
 # This constant controls how much time we spend on looking for optimal moves.
 NODES_SEARCHED = 1e6
@@ -318,7 +327,7 @@ def bound(pos, gamma, depth):
     # We prefer fail-high moves, as they are the ones we can build our pv from.
     if entry is None or depth >= entry.depth and best >= gamma:
         tp[pos] = Entry(depth, best, gamma, bmove)
-        if len(tp) > TABLE_SIZE:
+        while len(tp) > TABLE_SIZE:
             tp.popitem()
     return best
 
@@ -376,8 +385,8 @@ def print_pos(pos):
     uni_pieces = {'r':'♜', 'n':'♞', 'b':'♝', 'q':'♛', 'k':'♚', 'p':'♟',
                   'R':'♖', 'N':'♘', 'B':'♗', 'Q':'♕', 'K':'♔', 'P':'♙', '.':'·'}
     for i, row in enumerate(pos.board.strip().split('\n ')):
-        #print(' ', 8-i, ' '.join(p for p in row))
-        print(' ', 8-i, ' '.join(uni_pieces.get(p, p) for p in row))
+        print(' ', 8-i, ' '.join(p for p in row))
+        #print(' ', 8-i, ' '.join(uni_pieces.get(p, p) for p in row))
     print('    a b c d e f g h \n\n')
 
 def format_move(move, r=False):

@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 from multiprocessing import Process, Queue
-import sys, re, random, time
+import sys, re, random, time, argparse
 
 import sflib
 
@@ -11,23 +11,22 @@ import sflib
 if sys.version_info[0] == 2:
     input = raw_input
 
-DEPTH = 7
-WORKERS = 4
-
 in_q = Queue()
 out_q = Queue()
-def work(in_q, out_q):
+def work(in_q, out_q, depth):
     while True:
         move, pos = in_q.get()
-        out_q.put((move, sflib.search(pos, DEPTH)))
+        out_q.put((move, sflib.search(pos, depth)))
 
 worker_list = []
-for i in range(WORKERS):
-    worker_list.append(Process(target=work, args=(in_q, out_q,)))
-    worker_list[i].start()
-
+def init(workers, depth):
+    for i in range(workers):
+        worker_list.append(Process(target=work, args=(in_q, out_q, depth,)))
+        worker_list[i].start()
+    
 def clean_up():
-    for i in range(WORKERS): worker_list[i].terminate()
+    for w in worker_list:
+        w.terminate()
 
 #WHITE, BLACK = range(2)
 FEN_INITIAL = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
@@ -64,6 +63,7 @@ def init_openings():
 init_openings()
 
 def next_move(pos):
+    t = time.time()
     opening_moves = opening_list.get(pos)
     if opening_moves:
         return opening_moves[0][weighted_choice(opening_moves[1])]
@@ -126,7 +126,8 @@ def next_move(pos):
         else:
             weight = 1
         weight_list.append(weight)
-        print('move: ' + piece + sflib.format_move(move[0]) + ', score:',  str(move[2]) + ', depth:', str(move[3]), ', weight:', weight)
+        #print('move: ' + piece + sflib.format_move(move[0]) + ', score:',  str(move[2]) + ', depth:', str(move[3]), ', weight:', weight)
+    print('think time=', time.time() -t, end='\t')
     return candidate_moves[weighted_choice(weight_list)][0]
 
 def rotate_move(move):
@@ -141,43 +142,54 @@ def accept_move(pos, str_move):
     return None
 
 def main():
-    global DEPTH
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', type=int, default=4)
+    parser.add_argument('-w', type=int, default=4)
+    parser.add_argument('-r', action='store_true')
+    parser.add_argument('-m', action='store_true')
+    parser.add_argument('-i', type=file)
+    args = parser.parse_args()
+
     try:
-        rec_f = open(time.strftime('rec-%Y%m%d-%H%M%S.rec'), 'w')
-        if len(sys.argv) > 1 and sys.argv[1] != '0':
-            pos = init_board(sys.argv[1])
-            rec_f.write(pos.board+'\n')
+        if args.r:
+            rec_f = open(time.strftime('rec-%Y%m%d-%H%M%S.txt'), 'w')
+        if args.i is not None:
+            pos = parseFEN(args.i.read())
+            if args.r: rec_f.write(pos.board+'\n')
         else:
             pos = parseFEN(FEN_INITIAL)
 
+        init(args.w, args.d)
         step = 0
         while True:
             step += 1
-            sflib.print_pos(pos)
+            #sflib.print_pos(pos)
             white_move = next_move(pos)
             if not white_move:
                 break
-            print('White move:', sflib.format_move(white_move))
-            rec_f.write(str(step)+'. ' + sflib.format_move(white_move))
+            print(str(step), 'Wmove:', sflib.format_move(white_move))
             pos = pos.move(white_move)
 
-            sflib.print_pos(pos.rotate())
-            if len(sys.argv) > 2:
+            #sflib.print_pos(pos.rotate())
+            if args.m:
                 #machine vs. machine
                 time.sleep(1)
                 black_move = next_move(pos)
-                print('Black move:', sflib.format_move(black_move, True))
+                print('Bmove:', sflib.format_move(black_move, True))
             else:
                 black_move = None
                 while not black_move:
                     black_move = accept_move(pos, input('Your move:'))
-            rec_f.write(', ' + sflib.format_move(black_move, True) + '\n')
-            rec_f.flush()
+            if args.r:
+                rec_f.write(str(step)+'. ' + sflib.format_move(white_move) \
+                        + ', ' + sflib.format_move(black_move, True) + '\n')
+                rec_f.flush()
             pos=pos.move(black_move)
     except BaseException as e:
         print(e)
     finally:
-        rec_f.close()
+        if args.r:
+            rec_f.close()
         clean_up()
 
     return
